@@ -33,7 +33,7 @@ impl EvaluationService for EvaluationServiceImpl {
     }
 }
 
-async fn web_root() -> &'static str {
+async fn web_handler() -> &'static str {
     "Hello from REST!"
 }
 
@@ -43,7 +43,7 @@ async fn main() {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    let rest = Router::new().route("/", get(web_root));
+    let rest = Router::new().route("/", get(web_handler));
     let grpc = EvaluationServiceServer::new(EvaluationServiceImpl::default());
     let service = MultiplexService::new(rest, grpc);
 
