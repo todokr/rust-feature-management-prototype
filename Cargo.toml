@@ -11,10 +11,12 @@ publish = false
 axum = "0.5.15"
 futures = "0.3"
 hyper = { version = "0.14", features = ["full"] }
-regex = "1.6.0"
+prost = "0.10"
 tokio = { version = "1", features = ["full"] }
-tonic = "0.7"
-tower = "0.4"
+tonic = { version = "0.7" }
+tower = { version = "0.4", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
 tonic-build = { version = "0.7", features = ["prost"]}

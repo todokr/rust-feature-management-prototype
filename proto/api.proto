@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package featuremanagement.grpc;
+
+/* Clientから送信されたリクエストを評価し、利用可能な機能についての情報を提供する */
+service EvaluationService {
+
+  /* 渡されたトークンをもとに、利用可能な機能のコードを列挙する */
+  rpc ListAvailableFeature(ShowStateRequest) returns (AvailableFeatures);
+}
+
+message ShowStateRequest {
+  string token = 1;
+}
+
+message AvailableFeatures {
+  repeated Feature available = 1;
+}
+
+enum Feature {
+  DRIVE = 0;
+  DOC = 1;
+  SPREADSHEET = 2;
+  MEETS = 3;
+  SEARCH = 4;
+  KEEP = 5;
+}
