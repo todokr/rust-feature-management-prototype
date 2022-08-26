@@ -1,59 +1,57 @@
 mod proto {
-    tonic::include_proto!("helloworld");
+    tonic::include_proto!("featuremanagement.grpc");
 }
-
-// use axum::{response::Response, routing::get, Router};
-
-use tonic::{transport::Server, Request, Response, Status};
+mod multiplex_service;
 
 use proto::{
-    greeter_server::{Greeter, GreeterServer},
-    HelloReply, HelloRequest,
+    evaluation_service_server::{EvaluationService, EvaluationServiceServer},
+    AvailableFeatures, Feature, ShowStateRequest,
 };
 
+use self::multiplex_service::MultiplexService;
+use axum::{routing::get, Router};
 use std::net::SocketAddr;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tonic::{Request as TonicRequest, Response as TonicResponse, Status};
 
 #[derive(Default)]
-pub struct MyGreeter {}
+pub struct EvaluationServiceImpl {}
 
 #[tonic::async_trait]
-impl Greeter for MyGreeter {
-    async fn say_hello(
+impl EvaluationService for EvaluationServiceImpl {
+    /// 渡されたトークンをもとに、利用可能な機能のコードを列挙する
+    async fn list_available_feature(
         &self,
-        request: tonic::Request<HelloRequest>,
-    ) -> Result<tonic::Response<HelloReply>, tonic::Status> {
-        println!("Got a request from {:?}", request.remote_addr());
-        let reply = HelloReply {
-            message: format!("Hello {}!", request.into_inner().name),
-        };
-        Ok(Response::new(reply))
+        request: TonicRequest<ShowStateRequest>,
+    ) -> Result<TonicResponse<AvailableFeatures>, Status> {
+        tracing::info!("request token: {}", request.into_inner().token);
+        let available = vec![Feature::Doc, Feature::Drive, Feature::Search]
+            .iter()
+            .map(|&f| f as i32)
+            .collect();
+        let features = AvailableFeatures { available };
+        Ok(tonic::Response::new(features))
     }
 }
 
-// #[tonic::async_trait]
-// impl EvaluationService for EvaluationServiceImpl {
-//     /// 渡されたトークンをもとに、利用可能な機能のコードを列挙する
-//     async fn list_available_feature(
-//         &self,
-//         request: tonic::Request<ShowStateRequest>,
-//     ) -> Result<tonic::Response<AvailableFeatures>, tonic::Status> {
-//         let reply = AvailableFeatures { available: vec![] };
-//         Ok(TonicResponse::new(reply))
-//     }
-// }
+async fn web_root() -> &'static str {
+    "Hello from REST!"
+}
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "127.0.0.1:9002".parse().unwrap();
-    let greeter = MyGreeter::default();
+async fn main() {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
-    println!("GreeterService start on {}", addr);
+    let rest = Router::new().route("/", get(web_root));
+    let grpc = EvaluationServiceServer::new(EvaluationServiceImpl::default());
+    let service = MultiplexService::new(rest, grpc);
 
-    Server::builder()
-        .add_service(GreeterServer::new(greeter))
-        .serve(addr)
-        .await?;
+    let addr = SocketAddr::from(([127, 0, 0, 1], 9002));
+    tracing::info!("starting server at {}", addr);
 
-    Ok(())
+    axum::Server::bind(&addr)
+        .serve(tower::make::Shared::new(service))
+        .await
+        .unwrap()
 }
